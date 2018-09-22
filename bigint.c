@@ -1,29 +1,7 @@
+#include "bigint.h"
 #include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
 #include <string.h>
-#include <inttypes.h>
 #include <assert.h>
-
-#ifndef WORD_BIT_SIZE
-#define WORD_BIT_SIZE 8
-#endif
-
-#if WORD_BIT_SIZE == 8
-    typedef uint8_t WordType;
-    #define PRIxWT "%02"PRIx8
-#elif WORD_BIT_SIZE == 16
-    typedef uint16_t WordType;
-    #define PRIxWT "%04"PRIx16
-#elif WORD_BIT_SIZE == 32
-    typedef uint32_t WordType;
-    #define PRIxWT "%08"PRIx32
-#elif WORD_BIT_SIZE == 64
-    typedef uint64_t WordType;
-    #define PRIxWT "%016"PRIx64
-#else
-    #error WORD_BIT_SIZE must be one of: 8, 16, 32, 64
-#endif
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -33,26 +11,56 @@
 // get the three most significant bits (for carry)
 #define HI_3_BITS(n) (n >> ((sizeof(WordType) << 3) - 3))
 
-typedef struct BigInt {
-   size_t refCount;
-   size_t len;
-   WordType data[];
-} BigInt;
-
 /** Adds three unsigned ints and returns the carry out. */
-int addAndCarry(WordType a, WordType b, WordType c, WordType* d) {
+static int addAndCarry(WordType a, WordType b, WordType c, WordType* d) {
     WordType ab = a + b;
     WordType abc = ab + c;
     *d = abc;
     return (ab < a) + (abc < ab);
 }
 
-BigInt* add(BigInt* a, BigInt* b, int negateb) {
+BigInt* yabi_compl(BigInt* a) {
+    BigInt* res = malloc(sizeof(BigInt) + a->len * sizeof(WordType));
+    res->refCount = 0;
+    res->len = a->len;
+    for(size_t i = 0; i < a->len; i++) {
+        res->data[i] = ~a->data[i];
+    }
+    return res;
+}
+
+BigInt* yabi_negate(BigInt* a) {
+    BigInt* res = malloc(sizeof(BigInt) + a->len * sizeof(WordType));
+    res->refCount = 0;
+    res->len = a->len;
+    unsigned carry = 1;
+    for(size_t i = 0; i < res->len; i++) {
+        res->data[i] = ~a->data[i];
+        carry = addAndCarry(res->data[i], carry, 0, &res->data[i]);
+    }
+    //if the sign bit overflowed we need to add one more
+    if(HI_BIT(res->data[res->len - 1]) == HI_BIT(a->data[a->len - 1])) {
+        // -0 is still 0
+        if(res->len != 1 || res->data[0] != 0) {
+            res = realloc(res, sizeof(BigInt) + ++res->len * sizeof(WordType));
+            res->data[res->len - 1] = carry;
+        }
+    } else if(res->data[res->len - 1] == (WordType)-HI_BIT(res->data[res->len - 1])) {
+        //check if we have an extra sign extension
+        if(HI_BIT(res->data[res->len - 2]) != HI_BIT(a->data[a->len - 1])) {
+            res = realloc(res, sizeof(BigInt) + --res->len * sizeof(WordType));
+        }
+    }
+    return res;
+}
+
+static BigInt* add(BigInt* a, BigInt* b, int negateb) {
     //the result may be one word longer if a + b would otherwise overflow
     size_t len  = max(a->len, b->len);
     BigInt* res = malloc(sizeof(BigInt) + len * sizeof(WordType));
     //add word by word, tracking the carry
     size_t upTo = min(a->len, b->len);
+    int signa = HI_BIT(a->data[a->len - 1]);
     int signb = HI_BIT(b->data[b->len - 1]);
     unsigned carry;
     size_t i;
@@ -71,7 +79,7 @@ BigInt* add(BigInt* a, BigInt* b, int negateb) {
         }
         //add leftovers from b
         while(i < b->len) {
-            carry = addAndCarry(0, ~b->data[i], carry, &res->data[i]);
+            carry = addAndCarry((WordType)-signa, ~b->data[i], carry, &res->data[i]);
             i++;
         }
         //overflow would occur iff a and b have the same sign, AND the sign
@@ -93,7 +101,7 @@ BigInt* add(BigInt* a, BigInt* b, int negateb) {
         }
         //add leftovers from b
         while(i < b->len) {
-            carry = addAndCarry(0, b->data[i], carry, &res->data[i]);
+            carry = addAndCarry((WordType)-signa, b->data[i], carry, &res->data[i]);
             i++;
         }
         //overflow would occur iff a and b have the same sign, AND the sign
@@ -124,11 +132,15 @@ BigInt* add(BigInt* a, BigInt* b, int negateb) {
     return res;
 }
 
-/**
- * Creates a BigInt from the number given in the string. The string must be
- * numeric (base 10), optionally starting with an ASCII minus sign.
- */
-BigInt* fromStr(char* str) {
+BigInt* yabi_add(BigInt* a, BigInt* b) {
+    return add(a, b, 0);
+}
+
+BigInt* yabi_sub(BigInt* a, BigInt* b) {
+    return add(a, b, 1);
+}
+
+BigInt* yabi_fromStr(char* str) {
     //overestimates required space
     //space = 1 + (log2(num) / log2(WordBase))
     #define TO_LOGB2(a) ((a) * 7 / 2)
@@ -186,34 +198,4 @@ BigInt* fromStr(char* str) {
     memcpy(res->data, data, len * sizeof(WordType));
     free(data);
     return res;
-}
-
-void printHex(BigInt* a) {
-    size_t idx = a->len;
-    while(idx != 0) {
-        WordType tmp = a->data[idx - 1];
-        printf(PRIxWT" ", tmp);
-        idx--;
-    }
-    printf("\n");
-}
-
-// for testing
-int main(int argc, char* argv[]) {
-    if(argc < 4) {
-        return 1;
-    }
-    char* digits = argv[1];
-    char* digits2 = argv[2];
-    int subtract = *argv[3] == '1';
-    BigInt* a = fromStr(digits);
-    BigInt* b = fromStr(digits2);
-    printHex(a);
-    printHex(b);
-    BigInt* c = add(a, b, subtract);
-    printHex(c);
-    free(c);
-    free(b);
-    free(a);
-    return 0;
 }
