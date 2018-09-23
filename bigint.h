@@ -52,11 +52,15 @@ BigInt* yabi_compl(const BigInt* a);
 
 /*
  * The following functions let you provide your own buffer (that need not
- * even be a BigInt). These functions return the number of words the
- * result takes up in the buffer. The remaining words in the buffer are
- * sign-extended. In the case of overflow, the result is silently truncated
- * and the buffer length is returned. Useful for fixed-length arithmetic,
- * but may be surprising.
+ * even be a BigInt). These functions behave as if `a` and `b` were sign
+ * extended or truncated to `len` words, and then the given operation applied
+ * and the result stored in `buffer`. The minimum buffer length required to
+ * represent the result, up to `len`, is returned. Note that the case of truncation
+ * may result in two's complement integer overflow. Useful for fixed-length
+ * arithmetic, but may be surprising. The parameter `buffer` in all of these
+ * functions is explicitly allowed to refer to the same data as one or both of the
+ * arguments, but it may not alias them in any other way (for example, by
+ * an offset).
  */
 
 size_t yabi_addToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);

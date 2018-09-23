@@ -47,6 +47,9 @@ int main(int argc, char* argv[]) {
     c = yabi_compl(a);
     printHex("~a", c);
     free(c);
+    c = yabi_and(a, b);
+    printHex("a&b", c);
+    free(c);
     free(b);
     free(a);
     return 0;
