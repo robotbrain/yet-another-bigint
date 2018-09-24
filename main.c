@@ -50,6 +50,10 @@ int main(int argc, char* argv[]) {
     c = yabi_and(a, b);
     printHex("a&b", c);
     free(c);
+    printf("toSize(b): %lu\n", yabi_toSize(b));
+    c = yabi_lshift(a, yabi_toSize(b));
+    printHex("a<<b", c);
+    free(c);
     free(b);
     free(a);
     return 0;

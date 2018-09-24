@@ -6,10 +6,12 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
+// get the most significant n bits
+#define HI_N_BITS(n, bits) (n >> (YABI_WORD_BIT_SIZE - bits))
 // get the most significant bit (sign bit)
-#define HI_BIT(n) (n >> ((sizeof(WordType) << 3) - 1))
+#define HI_BIT(n) (n >> (YABI_WORD_BIT_SIZE - 1))
 // get the three most significant bits (for carry)
-#define HI_3_BITS(n) (n >> ((sizeof(WordType) << 3) - 3))
+#define HI_3_BITS(n) (n >> (YABI_WORD_BIT_SIZE - 3))
 
 // static helpers
 static int addAndCarry(WordType a, WordType b, WordType c, WordType* d);
@@ -26,6 +28,35 @@ static int addAndCarry(WordType a, WordType b, WordType c, WordType* d) {
     WordType abc = ab + c;
     *d = abc;
     return (ab < a) + (abc < ab);
+}
+
+WordType yabi_toUnsigned(const BigInt* a) {
+    return a->data[0];
+}
+
+SWordType yabi_toSigned(const BigInt* a) {
+    return a->data[0];
+}
+
+size_t yabi_toSize(const BigInt* a) {
+    #define SIZE_IN_WORDS (1 + sizeof(size_t) / sizeof(WordType))
+    size_t res = 0;
+    size_t shiftDist = 0;
+    size_t i;
+    //move each word to its appropriate spot
+    for(i = 0; i < a->len && i < SIZE_IN_WORDS; i++) {
+        res |= ((size_t)a->data[i]) << shiftDist;
+        shiftDist += YABI_WORD_BIT_SIZE;
+    }
+    //sign extend to fill the remaining slots
+    WordType asign = -HI_BIT(a->data[i - 1]);
+    while(i < SIZE_IN_WORDS) {
+        res |= ((size_t)asign) << shiftDist;
+        i++;
+        shiftDist += YABI_WORD_BIT_SIZE;
+    }
+    return res;
+    #undef SIZE_IN_WORDS
 }
 
 //helper macros for defining the bitwise operations
@@ -134,6 +165,69 @@ BigInt* yabi_compl(const BigInt* a) {
     res->len = a->len;
     size_t s = yabi_complToBuf(a, a->len, res->data);
     assert(s == a->len);
+    return res;
+}
+
+// shifts modulo the buffer len
+size_t yabi_lshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffer) {
+    //special case logic
+    if(a->len == 1 && a->data[0] == 0) {
+        //0 << x == 0
+        memset(buffer, 0, len * sizeof(WordType));
+        return 1;
+    }
+    if(amt == 0) {
+        //x << 0 == x
+        size_t stop = min(len, a->len);
+        unsigned char sign = -HI_BIT(a->data[stop - 1]);
+        memcpy(buffer, a->data, stop * sizeof(WordType));
+        if(stop < len) {
+            memset(buffer + stop, sign, (len - stop) * sizeof(WordType));
+        }
+        return stop;
+    }
+    //the number of *words* to shift left, modulo len
+    size_t shiftWords = (amt / YABI_WORD_BIT_SIZE) % len;
+    //the remaining number of *bits* to shift left within a word
+    WordType shiftRem = amt & (YABI_WORD_BIT_SIZE - 1);
+    size_t stop = min(a->len + shiftWords, len);
+    WordType asign = -HI_BIT(a->data[stop - shiftWords - 1]);
+    size_t i;
+    //fill lower order words with 0
+    for(i = 0; i < shiftWords; i++) {
+        buffer[i] = 0;
+    }
+    //carry bits shifted off
+    WordType carry = 0;
+    for( ; i < stop; i++) {
+        buffer[i] = (WordType)(a->data[i - shiftWords] << shiftRem) | carry;
+        carry = HI_N_BITS(a->data[i - shiftWords], shiftRem);
+    }
+    //add last carry in if we have room
+    if(stop < len && carry != HI_N_BITS(asign, shiftRem)) {
+        buffer[i++] = (WordType)(asign << shiftRem) | carry;
+        stop++;
+    }
+    //shift with the sign extension of a
+    for( ; i < len; i++) {
+        buffer[i] = asign;
+    }
+    //fix potential overflow of the sign bit
+    if(stop < len && (WordType)-HI_BIT(buffer[stop - 1]) != asign) {
+        stop++;
+    }
+    return stop;
+}
+
+BigInt* yabi_lshift(const BigInt* a, size_t amt) {
+    size_t len = a->len + (amt / YABI_WORD_BIT_SIZE) + 1;
+    BigInt* res = YABI_NEW_BIGINT(len);
+    res->refCount = 0;
+    res->len = len;
+    len = yabi_lshiftToBuf(a, amt, len, res->data);
+    if(len != res->len) {
+        YABI_RESIZE_BIGINT(res, len);
+    }
     return res;
 }
 
@@ -286,7 +380,7 @@ BigInt* yabi_fromStr(const char* str) {
     //overestimates required space
     //space = 1 + (log2(num) / log2(WordBase))
     #define TO_LOGB2(a) ((a) * 7 / 2)
-    size_t cap = 1 + TO_LOGB2(strlen(str)) / (sizeof(WordType) << 3);
+    size_t cap = 1 + TO_LOGB2(strlen(str)) / YABI_WORD_BIT_SIZE;
     #undef TO_LOGB2
     WordType* data = YABI_CALLOC(cap, sizeof(WordType));
     const char* c = str;

@@ -4,16 +4,20 @@
 #include <stddef.h>
 
 // redefine this macro to change the size of words
-#define YABI_WORD_BIT_SIZE 8
+#define YABI_WORD_BIT_SIZE 64
 
 #if YABI_WORD_BIT_SIZE == 8
     typedef uint8_t WordType;
+    typedef int8_t SWordType;
 #elif YABI_WORD_BIT_SIZE == 16
     typedef uint16_t WordType;
+    typedef int16_t SWordType;
 #elif YABI_WORD_BIT_SIZE == 32
     typedef uint32_t WordType;
+    typedef int32_t SWordType;
 #elif YABI_WORD_BIT_SIZE == 64
     typedef uint64_t WordType;
+    typedef int64_t SWordType;
 #else
     #error WORD_BIT_SIZE must be one of: 8, 16, 32, 64
 #endif
@@ -42,8 +46,8 @@ BigInt* yabi_negate(const BigInt* a);
 int yabi_equal(const BigInt* a, const BigInt* b);
 int yabi_cmp(const BigInt* a, const BigInt* b);
 
-BigInt* yabi_lshift(const BigInt* a, WordType amt);
-BigInt* yabi_rshift(const BigInt* a, WordType amt);
+BigInt* yabi_lshift(const BigInt* a, size_t amt);
+BigInt* yabi_rshift(const BigInt* a, size_t amt);
 
 BigInt* yabi_and(const BigInt* a, const BigInt* b);
 BigInt* yabi_or(const BigInt* a, const BigInt* b);
@@ -69,13 +73,17 @@ size_t yabi_mulToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buf
 size_t yabi_divToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
 size_t yabi_negateToBuf(const BigInt* a, size_t len, WordType* buffer);
 
-size_t yabi_lshiftToBuf(const BigInt* a, WordType amt, size_t len, WordType* buffer);
-size_t yabi_rshiftToBuf(const BigInt* a, WordType amt, size_t len, WordType* buffer);
+size_t yabi_lshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffer);
+size_t yabi_rshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffer);
 
 size_t yabi_andToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
 size_t yabi_orToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
 size_t yabi_xorToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
 size_t yabi_complToBuf(const BigInt* a, size_t len, WordType* buffer);
+
+WordType yabi_toUnsigned(const BigInt* a);
+SWordType yabi_toSigned(const BigInt* a);
+size_t yabi_toSize(const BigInt* a);
 
 /**
  * Creates a BigInt from the number given in the string. The string must be
