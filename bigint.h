@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 // redefine this macro to change the size of words
-#define YABI_WORD_BIT_SIZE 64
+#define YABI_WORD_BIT_SIZE 8
 
 #if YABI_WORD_BIT_SIZE == 8
     typedef uint8_t WordType;
