@@ -219,6 +219,29 @@ size_t yabi_lshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffe
     return stop;
 }
 
+// size_t yabi_rshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffer) {
+//     //the number of words to shift right
+//     size_t shiftWords = amt / YABI_WORD_BIT_SIZE;
+//     //the remaining number of *bits* to shift right within a word
+//     WordType shiftRem = amt & (YABI_WORD_BIT_SIZE - 1);
+//     size_t stop = min(a->len + shiftWords, len);
+//     if(shiftWords >= a->len) {
+//         //fill with sign bit
+//         return 1;
+//     }
+//     WordType asign = -HI_BIT(a->data[a->len - 1]);
+//     size_t i;
+//     //fill sign extension
+//     for(i = len; i > a->len - shiftWords; i--) {
+//         buffer[i - 1] = asign;
+//     }
+//     WordType carry = asign << (YABI_WORD_BIT_SIZE - shiftRem);
+//     for( ; i > 0; i--) {
+//         buffer[i - 1] = (a->data[i - 1 + shiftWords] >> shiftRem) | carry;
+//         carry = (a->data[i - 1 + shiftWords] & (((WordType)1 << shiftRem) - 1)) << (YABI_WORD_BIT_SIZE - shiftRem);
+//     }
+// }
+
 BigInt* yabi_lshift(const BigInt* a, size_t amt) {
     size_t len = a->len + (amt / YABI_WORD_BIT_SIZE) + 1;
     BigInt* res = YABI_NEW_BIGINT(len);
