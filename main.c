@@ -36,54 +36,81 @@ int main(int argc, char* argv[]) {
     char* digits2 = argv[2];
     BigInt* a = yabi_fromStr(digits);
     BigInt* b = yabi_fromStr(digits2);
-    BigInt* c;
-    WordType word;
+    BigInt* c;          //dyn-allocated result
+    WordType word;      //truncated buffer
+    WordType buf[4];    //overlong buffer
     printHex("a", a);
     printHex("b", b);
+    //print truncated buffer
+    #define PTB(desc) printf(desc": "PRIxWT"\n", word)
+    //print overlong buffer
+    #define POB(desc) printf(desc": "PRIxWT" "PRIxWT" "PRIxWT" "PRIxWT"\n", buf[3], buf[2], buf[1], buf[0])
 
+    //addition
     c = yabi_add(a, b);
     printHex("a+b", c);
     free(c);
     yabi_addToBuf(a, b, 1, &word);
-    printf("[a+b]: "PRIxWT"\n", word);
+    yabi_addToBuf(a, b, 4, buf);
+    PTB("[a+b]");
+    POB("{a+b}");
 
+    //negation
     c = yabi_negate(a);
     printHex("-a", c);
     free(c);
     yabi_negateToBuf(a, 1, &word);
-    printf("[-a]: "PRIxWT"\n", word);
+    yabi_negateToBuf(a, 4, buf);
+    PTB("[-a]");
+    POB("{-a}");
 
+    //complement
     c = yabi_compl(a);
     printHex("~a", c);
     free(c);
     yabi_complToBuf(a, 1, &word);
-    printf("[~a]: "PRIxWT"\n", word);
+    yabi_complToBuf(a, 4, buf);
+    PTB("[~a]");
+    POB("{~a}");
 
+    //bitwise and
     c = yabi_and(a, b);
     printHex("a&b", c);
     free(c);
     yabi_andToBuf(a, b, 1, &word);
-    printf("[a&b]: "PRIxWT"\n", word);
+    yabi_andToBuf(a, b, 4, buf);
+    PTB("[a&b]");
+    POB("{a&b}");
 
+    //bitwise or
     c = yabi_or(a, b);
     printHex("a|b", c);
     free(c);
     yabi_orToBuf(a, b, 1, &word);
-    printf("[a|b]: "PRIxWT"\n", word);
+    yabi_orToBuf(a, b, 4, buf);
+    PTB("[a|b]");
+    POB("{a|b}");
 
+    //bitwise xor
     c = yabi_xor(a, b);
     printHex("a^b", c);
     free(c);
     yabi_xorToBuf(a, b, 1, &word);
-    printf("[a^b]: "PRIxWT"\n", word);
+    yabi_xorToBuf(a, b, 4, buf);
+    PTB("[a^b]");
+    POB("{a^b}");
 
-    printf("toSize(b): %lu\n", yabi_toSize(b));
+    size_t s = yabi_toSize(b);
+    printf("toSize(b): %lu\n", s);
 
-    c = yabi_lshift(a, yabi_toSize(b));
+    //left shift
+    c = yabi_lshift(a, s);
     printHex("a<<b", c);
     free(c);
-    yabi_lshiftToBuf(a, yabi_toSize(b), 1, &word);
-    printf("[a<<b]: "PRIxWT"\n", word);
+    yabi_lshiftToBuf(a, s, 1, &word);
+    yabi_lshiftToBuf(a, s, 4, buf);
+    PTB("[a<<b]");
+    POB("{a<<b}");
 
     free(b);
     free(a);
