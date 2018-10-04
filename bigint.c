@@ -168,7 +168,6 @@ BigInt* yabi_compl(const BigInt* a) {
     return res;
 }
 
-// shifts modulo the buffer len
 size_t yabi_lshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffer) {
     if(amt == 0) {
         //x << 0 == x
@@ -219,28 +218,55 @@ size_t yabi_lshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffe
     return stop;
 }
 
-// size_t yabi_rshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffer) {
-//     //the number of words to shift right
-//     size_t shiftWords = amt / YABI_WORD_BIT_SIZE;
-//     //the remaining number of *bits* to shift right within a word
-//     WordType shiftRem = amt & (YABI_WORD_BIT_SIZE - 1);
-//     size_t stop = min(a->len + shiftWords, len);
-//     if(shiftWords >= a->len) {
-//         //fill with sign bit
-//         return 1;
-//     }
-//     WordType asign = -HI_BIT(a->data[a->len - 1]);
-//     size_t i;
-//     //fill sign extension
-//     for(i = len; i > a->len - shiftWords; i--) {
-//         buffer[i - 1] = asign;
-//     }
-//     WordType carry = asign << (YABI_WORD_BIT_SIZE - shiftRem);
-//     for( ; i > 0; i--) {
-//         buffer[i - 1] = (a->data[i - 1 + shiftWords] >> shiftRem) | carry;
-//         carry = (a->data[i - 1 + shiftWords] & (((WordType)1 << shiftRem) - 1)) << (YABI_WORD_BIT_SIZE - shiftRem);
-//     }
-// }
+size_t yabi_rshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffer) {
+    if(amt == 0) {
+        //x >> 0 == x
+        size_t stop = min(len, a->len);
+        unsigned char sign = -HI_BIT(a->data[stop - 1]);
+        memcpy(buffer, a->data, stop * sizeof(WordType));
+        if(stop < len) {
+            memset(buffer + stop, sign, (len - stop) * sizeof(WordType));
+        }
+        return stop;
+    }
+    //the number of words to shift right
+    size_t shiftWords = (amt / YABI_WORD_BIT_SIZE);
+    size_t stop = min(a->len, len);
+    WordType asign = -HI_BIT(a->data[stop - 1]);
+    //special case logic
+    if((a->len == 1 && a->data[0] == 0) || (shiftWords > a->len)) {
+        //0 >> x == 0 and a >> huge == sign
+        memset(buffer, asign, len * sizeof(WordType));
+        return 1;
+    }
+    #define SHIFT_HI(word) ((word & (((WordType)1 << shiftRem) - 1)) << (YABI_WORD_BIT_SIZE - shiftRem))
+    //the remaining number of *bits* to shift right within a word
+    WordType shiftRem = amt & (YABI_WORD_BIT_SIZE - 1);
+    //initial carry, get the sign bit if data at idx `len` does not exist
+    WordType carry = (stop + shiftWords >= a->len) ? (asign << (YABI_WORD_BIT_SIZE - shiftRem))
+        : SHIFT_HI(a->data[stop + shiftWords]);
+    size_t i;
+    //fill sign extension
+    for(i = len; i > a->len - shiftWords; i--) {
+        buffer[i - 1] = asign;
+        stop--; //sign extension is not strictly required in repr
+    }
+    //fill shifted data from a->data
+    for( ; i > 0; i--) {
+        buffer[i - 1] = (WordType)((a->data[i - 1 + shiftWords] >> shiftRem) | carry);
+        carry = SHIFT_HI(a->data[i - 1 + shiftWords]);
+    }
+    //calculate actual buffer length
+    while(stop > 1 && buffer[stop - 1] == asign) {
+        stop--;
+    }
+    //fix for overcorrection
+    if(HI_BIT(buffer[stop - 1]) != (asign & 1)) {
+        stop++;
+    }
+    return stop;
+    #undef SHIFT_HI
+}
 
 BigInt* yabi_lshift(const BigInt* a, size_t amt) {
     size_t len = a->len + (amt / YABI_WORD_BIT_SIZE) + 1;
@@ -248,6 +274,18 @@ BigInt* yabi_lshift(const BigInt* a, size_t amt) {
     res->refCount = 0;
     res->len = len;
     len = yabi_lshiftToBuf(a, amt, len, res->data);
+    if(len != res->len) {
+        YABI_RESIZE_BIGINT(res, len);
+    }
+    return res;
+}
+
+BigInt* yabi_rshift(const BigInt* a, size_t amt) {
+    size_t len = a->len;
+    BigInt* res = YABI_NEW_BIGINT(len);
+    res->refCount = 0;
+    res->len = len;
+    len = yabi_rshiftToBuf(a, amt, len, res->data);
     if(len != res->len) {
         YABI_RESIZE_BIGINT(res, len);
     }

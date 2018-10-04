@@ -112,6 +112,15 @@ int main(int argc, char* argv[]) {
     PTB("[a<<b]");
     POB("{a<<b}");
 
+    //left shift
+    c = yabi_rshift(a, s);
+    printHex("a>>b", c);
+    free(c);
+    yabi_rshiftToBuf(a, s, 1, &word);
+    yabi_rshiftToBuf(a, s, 4, buf);
+    PTB("[a>>b]");
+    POB("{a>>b}");
+
     free(b);
     free(a);
     return 0;
