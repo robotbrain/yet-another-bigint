@@ -56,9 +56,11 @@ BigInt* yabi_compl(const BigInt* a);
 
 /*
  * The following functions let you provide your own buffer (that need not
- * even be a BigInt). These functions behave as if `a` and `b` were sign
- * extended or truncated to `len` words, and then the given operation applied
- * and the result stored in `buffer`. The minimum buffer length required to
+ * even be a BigInt). These functions behave as if the given operation
+ * is applied using arbitrary precision, and then the result stored in `buffer`,
+ * possibly truncated. This behavior only matters for right shift and division,
+ * where it ensures that they produce the proper result when the answer can be
+ * expressed in fewer words than the arguments. The minimum buffer length required to
  * represent the result, up to `len`, is returned. Note that the case of truncation
  * may result in two's complement integer overflow. Useful for fixed-length
  * arithmetic, but may be surprising. The parameter `buffer` in all of these

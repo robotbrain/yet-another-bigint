@@ -170,12 +170,6 @@ BigInt* yabi_compl(const BigInt* a) {
 
 // shifts modulo the buffer len
 size_t yabi_lshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffer) {
-    //special case logic
-    if(a->len == 1 && a->data[0] == 0) {
-        //0 << x == 0
-        memset(buffer, 0, len * sizeof(WordType));
-        return 1;
-    }
     if(amt == 0) {
         //x << 0 == x
         size_t stop = min(len, a->len);
@@ -186,8 +180,14 @@ size_t yabi_lshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffe
         }
         return stop;
     }
-    //the number of *words* to shift left, modulo len
-    size_t shiftWords = (amt / YABI_WORD_BIT_SIZE) % len;
+    //the number of *words* to shift left
+    size_t shiftWords = (amt / YABI_WORD_BIT_SIZE);
+    //special case logic
+    if((a->len == 1 && a->data[0] == 0) || (shiftWords > len)) {
+        //0 << x == 0
+        memset(buffer, 0, len * sizeof(WordType));
+        return 1;
+    }
     //the remaining number of *bits* to shift left within a word
     WordType shiftRem = amt & (YABI_WORD_BIT_SIZE - 1);
     size_t stop = min(a->len + shiftWords, len);
