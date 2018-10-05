@@ -43,6 +43,9 @@ int main(int argc, char* argv[]) {
     printHex("a", a);
     printHex("b", b);
     yabi_toBuf(a, 10, charBuf);
+    char* s1 = yabi_toStr(a);
+    printf("str(a): %s\n", s1);
+    free(s1); s1 = NULL;
     printf("[str(a)]: %s\n", charBuf);
     //print truncated buffer
     #define PTB(desc) printf(desc": "PRIxWT"\n", word)

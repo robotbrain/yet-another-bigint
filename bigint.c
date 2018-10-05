@@ -582,3 +582,18 @@ size_t yabi_toBuf(const BigInt* a, size_t len, char* restrict _buffer) {
     return bufferLen;
     #undef NTH_BIT
 }
+
+char* yabi_toStr(const BigInt* a) {
+    //len = 1 + log10(a) = 1 + logWT(a) / logWT(10)
+    //logWT(a) = a->len
+    //logWT(10) ~= 3.32 / WORD_BIT_SIZE
+    //len = 1 + a->len * (WORD_BIT_SIZE / 3.32)
+    size_t len = 1 + a->len * ((YABI_WORD_BIT_SIZE + 1) / 3)
+        + HI_BIT(a->data[a->len - 1]); //minus sign takes up one extra
+    char* res = YABI_MALLOC(len + 1);
+    size_t newLen = yabi_toBuf(a, len + 1, res);
+    if(newLen != len) {
+        res = YABI_REALLOC(res, newLen + 1);
+    }
+    return res;
+}
