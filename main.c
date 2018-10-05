@@ -39,8 +39,11 @@ int main(int argc, char* argv[]) {
     BigInt* c;          //dyn-allocated result
     WordType word;      //truncated buffer
     WordType buf[4];    //overlong buffer
+    char charBuf[10];  //character buffer
     printHex("a", a);
     printHex("b", b);
+    yabi_toBuf(a, 10, charBuf);
+    printf("[str(a)]: %s\n", charBuf);
     //print truncated buffer
     #define PTB(desc) printf(desc": "PRIxWT"\n", word)
     //print overlong buffer

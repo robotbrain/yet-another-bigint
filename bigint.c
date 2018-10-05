@@ -496,3 +496,89 @@ BigInt* yabi_fromStr(const char* str) {
     YABI_FREE(data);
     return res;
 }
+
+size_t yabi_toBuf(const BigInt* a, size_t len, char* restrict _buffer) {
+    //nil buffer case
+    if(len == 1) {
+        *_buffer = '\0';
+        return 0;
+    }
+    #define NTH_BIT(a, n) (((a) & ((WordType)1 << (n))) >> (n))
+    const int negative = HI_BIT(a->data[a->len - 1]);
+    unsigned char* buffer = (unsigned char*) _buffer; //unsigned for definedness :)
+    //check for string length 1 with negative number
+    if(negative) {
+        buffer[0] = '-';
+        buffer[1] = '\0';
+        if(len == 2) {
+            return 1;
+        }
+    } else {
+        buffer[0] = 0;
+    }
+    size_t bufferLen = 1 + negative;
+    //"double dabble" to convert binary to binary coded decimal
+    //this takes time proportional to the number of bits in a->data
+    for(size_t aWordIdx = a->len; aWordIdx > 0; aWordIdx--) {
+        WordType word = a->data[aWordIdx - 1];
+        if(negative) {
+            word = ~word;
+        }
+        for(size_t aBitIdx = (sizeof(WordType) << 3); aBitIdx > 0; aBitIdx--) {
+            //dabble
+            for(size_t i = negative; i < bufferLen; i++) {
+                unsigned char tmp = buffer[i];
+                if(tmp >= 5) {
+                    tmp += 3;
+                }
+                //overflow of nibble is not possible in double-dabble
+                assert(tmp < 16);
+                buffer[i] = tmp;
+            }
+            //double
+            int carry = NTH_BIT(word, aBitIdx - 1);
+            for(size_t i = negative; i < bufferLen; i++) {
+                unsigned char tmp = buffer[i];
+                assert(carry == 0 || carry == 1);
+                tmp = (tmp << 1) | carry;
+                carry = (tmp & 0x10) >> 4; //overflow bit (0b1_xxxx)
+                tmp &= 0xf;
+                buffer[i] = tmp;
+            }
+            if(carry && bufferLen < len - 1) {
+                buffer[bufferLen++] = carry;
+                buffer[bufferLen] = 0;
+            }
+        }
+    }
+    if(negative) {
+        //add one (in base 10)
+        int carry = 1;
+        for(size_t i = 1; i < bufferLen; i++) {
+            unsigned char tmp = buffer[i];
+            tmp += carry;
+            if(tmp > 9) {
+                tmp -= 10;
+                carry = 1;
+            } else {
+                carry = 0;
+            }
+            buffer[i] = tmp;
+        }
+        if(carry && bufferLen < len - 1) {
+            buffer[bufferLen++] = carry;
+        }
+    }
+    buffer[bufferLen] = '\0'; //NUL-terminate
+    //put into ASCII digit range and in correct endian order
+    for(size_t i = 0; i < (bufferLen - negative) / 2; i++) {
+        unsigned char tmp = buffer[bufferLen - 1 - i];
+        buffer[bufferLen - 1 - i] = buffer[negative + i] + '0';
+        buffer[negative + i] = tmp + '0';
+    }
+    if((bufferLen - negative) & 1) {
+        buffer[bufferLen / 2] += '0';
+    }
+    return bufferLen;
+    #undef NTH_BIT
+}
