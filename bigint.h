@@ -27,8 +27,8 @@
 #define YABI_CALLOC(n, siz) (calloc(n, siz))
 #define YABI_REALLOC(p, siz) (realloc(p, siz))
 #define YABI_FREE(p) (free(p))
-#define YABI_NEW_BIGINT(len) (YABI_MALLOC(sizeof(BigInt) + len * sizeof(WordType)))
-#define YABI_RESIZE_BIGINT(p, len) do { p = YABI_REALLOC(p, sizeof(BigInt) + len * sizeof(WordType)); (p)->len = len; } while(0)
+#define YABI_NEW_BIGINT(siz) (YABI_MALLOC(sizeof(BigInt) + siz * sizeof(WordType)))
+#define YABI_RESIZE_BIGINT(p, siz) do { p = YABI_REALLOC(p, sizeof(BigInt) + siz * sizeof(WordType)); (p)->len = siz; } while(0)
 
 typedef struct BigInt {
    size_t refCount;
@@ -92,6 +92,7 @@ size_t yabi_toSize(const BigInt* a);
  * numeric (base 10), optionally starting with an ASCII minus sign.
  */
 BigInt* yabi_fromStr(const char* str);
+size_t yabi_fromStrToBuf(const char* restrict str, size_t len, WordType* buffer);
 
 char* yabi_toStr(const BigInt* a);
 size_t yabi_toBuf(const BigInt* a, size_t len, char* restrict buffer);

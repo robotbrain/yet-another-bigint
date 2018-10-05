@@ -437,13 +437,7 @@ BigInt* yabi_sub(const BigInt* a, const BigInt* b) {
     return res;
 }
 
-BigInt* yabi_fromStr(const char* str) {
-    //overestimates required space
-    //space = 1 + (log2(num) / log2(WordBase))
-    #define TO_LOGB2(a) ((a) * 7 / 2)
-    size_t cap = 1 + TO_LOGB2(strlen(str)) / YABI_WORD_BIT_SIZE;
-    #undef TO_LOGB2
-    WordType* data = YABI_CALLOC(cap, sizeof(WordType));
+size_t yabi_fromStrToBuf(const char* restrict str, size_t len, WordType* data) {
     const char* c = str;
     //get the sign
     int negative = 0;
@@ -451,6 +445,8 @@ BigInt* yabi_fromStr(const char* str) {
         c++;
         negative = 1;
     }
+    size_t stop = len;
+    memset(data, 0, len * sizeof(WordType));
     while(*c) {
         assert(*c >= '0' && *c <= '9');
         //calculate 10*x + digit
@@ -459,41 +455,46 @@ BigInt* yabi_fromStr(const char* str) {
         //10*x = 8*x + 2*x = (x << 3) + (x << 1)
         carry += addAndCarry(data[0] << 3, data[0] << 1, (*c - '0'), &data[0]);
         //calculate 10*x + carry for each higher word
-        for(size_t i = 1; i < cap; i++) {
+        for(size_t i = 1; i < stop; i++) {
             unsigned newCarry = HI_3_BITS(data[i]) + HI_BIT(data[i]);
             newCarry += addAndCarry(data[i] << 3, data[i] << 1, carry, &data[i]);
             carry = newCarry;
         }
-        //there should be no carry out, since
-        //1) we should not have overflow, and
-        //2) we are adding positive numbers
-        assert(carry == 0);
         c++;
     }
     //if negative, flip the bits and add one
     if(negative) {
         unsigned carry = 1;
-        for(size_t i = 0; i < cap; i++) {
+        for(size_t i = 0; i < stop; i++) {
             data[i] = ~data[i];
             carry = addAndCarry(data[i], carry, 0, &data[i]);
         }
         //throw away last carry
     }
     //calculate true number of words. i.e. get rid of the extra sign extension.
-    size_t len = cap;
-    while(len > 1 && data[len - 1] == (WordType)-negative) {
-        len--;
+    while(stop > 1 && data[stop - 1] == (WordType)-negative) {
+        stop--;
     }
     //if the sign bit is not the same as `negative`, we need to add it back
-    if(HI_BIT(data[len - 1]) != negative) {
-        assert(len < cap);
-        data[len++] = (WordType)-negative;
+    if(stop < len && HI_BIT(data[stop - 1]) != negative) {
+        stop++;
     }
-    BigInt* res = YABI_NEW_BIGINT(len);
+    return stop;
+}
+
+BigInt* yabi_fromStr(const char* str) {
+    //overestimates required space
+    //space = 1 + (log2(num) / log2(WordBase))
+    #define TO_LOGB2(a) ((a) * 7 / 2)
+    size_t cap = 1 + TO_LOGB2(strlen(str)) / YABI_WORD_BIT_SIZE;
+    #undef TO_LOGB2
+    BigInt* res = YABI_NEW_BIGINT(cap);
     res->refCount = 0;
-    res->len = len;
-    memcpy(res->data, data, len * sizeof(WordType));
-    YABI_FREE(data);
+    res->len = cap;
+    cap = yabi_fromStrToBuf(str, cap, res->data);
+    if(cap != res->len) {
+        YABI_RESIZE_BIGINT(res, cap);
+    }
     return res;
 }
 
