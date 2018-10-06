@@ -110,22 +110,25 @@ int main(int argc, char* argv[]) {
     printf("toSize(b): %lu\n", s);
 
     //left shift
-    c = yabi_lshift(a, s);
-    printHex("a<<b", c);
-    free(c);
-    yabi_lshiftToBuf(a, s, 1, &word);
-    yabi_lshiftToBuf(a, s, 4, buf);
-    PTB("[a<<b]");
-    POB("{a<<b}");
+    // c = yabi_lshift(a, s);
+    // printHex("a<<b", c);
+    // free(c);
+    // yabi_lshiftToBuf(a, s, 1, &word);
+    // yabi_lshiftToBuf(a, s, 4, buf);
+    // PTB("[a<<b]");
+    // POB("{a<<b}");
+    //
+    // //left shift
+    // c = yabi_rshift(a, s);
+    // printHex("a>>b", c);
+    // free(c);
+    // yabi_rshiftToBuf(a, s, 1, &word);
+    // yabi_rshiftToBuf(a, s, 4, buf);
+    // PTB("[a>>b]");
+    // POB("{a>>b}");
 
-    //left shift
-    c = yabi_rshift(a, s);
-    printHex("a>>b", c);
-    free(c);
-    yabi_rshiftToBuf(a, s, 1, &word);
-    yabi_rshiftToBuf(a, s, 4, buf);
-    PTB("[a>>b]");
-    POB("{a>>b}");
+    yabi_mulToBuf(a, b, 4, buf);
+    POB("{a*b}");
 
     free(b);
     free(a);

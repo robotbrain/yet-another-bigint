@@ -7,18 +7,23 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 // get the most significant n bits
-#define HI_N_BITS(n, bits) (n >> (YABI_WORD_BIT_SIZE - bits))
+#define HI_N_BITS(n, bits) ((n) >> (YABI_WORD_BIT_SIZE - (bits)))
 // get the most significant bit (sign bit)
-#define HI_BIT(n) (n >> (YABI_WORD_BIT_SIZE - 1))
+#define HI_BIT(n) ((n) >> (YABI_WORD_BIT_SIZE - 1))
 // get the three most significant bits (for carry)
-#define HI_3_BITS(n) (n >> (YABI_WORD_BIT_SIZE - 3))
+#define HI_3_BITS(n) ((n) >> (YABI_WORD_BIT_SIZE - 3))
 
 // static helpers
 static int addAndCarry(WordType a, WordType b, WordType c, WordType* d);
+static WordType mulAndCarry(WordType a, WordType b, WordType* c);
 static size_t addBuffers(
     size_t alen, const WordType* a,
     size_t blen, const WordType* b,
     int negateb,
+    size_t len, WordType* buffer);
+static size_t mulBuffers(
+    size_t alen, const WordType* adata,
+    size_t blen, const WordType* bdata,
     size_t len, WordType* buffer);
 // end static helpers
 
@@ -435,6 +440,98 @@ BigInt* yabi_sub(const BigInt* a, const BigInt* b) {
         YABI_RESIZE_BIGINT(res, len);
     }
     return res;
+}
+
+static WordType mulAndCarry(WordType a, WordType b, WordType* c) {
+    //we use the FOIL method for half-words so as not to
+    //lose overflow bits.
+    // (ahi + alo)(bhi + blo)
+    // = ahi*bhi + ahi*blo + alo*bhi + alo*blo
+    WordType ahi = HI_N_BITS(a, YABI_WORD_BIT_SIZE >> 1);
+    WordType bhi = HI_N_BITS(b, YABI_WORD_BIT_SIZE >> 1);
+    WordType alo = a & (((WordType)1 << (YABI_WORD_BIT_SIZE >> 1)) - 1);
+    WordType blo = b & (((WordType)1 << (YABI_WORD_BIT_SIZE >> 1)) - 1);
+    WordType tmp; //scratch space
+    WordType carry;
+    carry = ahi * bhi;
+    tmp = ahi * blo;
+    carry += HI_N_BITS(tmp, YABI_WORD_BIT_SIZE >> 1);
+    carry += addAndCarry(*c, tmp << (YABI_WORD_BIT_SIZE >> 1), 0, c);
+    tmp = alo * bhi;
+    carry += HI_N_BITS(tmp, YABI_WORD_BIT_SIZE >> 1);
+    carry += addAndCarry(*c, tmp << (YABI_WORD_BIT_SIZE >> 1), 0, c);
+    carry += addAndCarry(*c, alo * blo, 0, c);
+    return carry;
+}
+
+// naive two's complement multiplication for buffers
+static size_t mulBuffers(
+        size_t alen, const WordType* adata,
+        size_t blen, const WordType* bdata,
+        size_t len, WordType* buffer) {
+    WordType asign = -HI_BIT(adata[alen - 1]);
+    WordType bsign = -HI_BIT(bdata[blen - 1]);
+    size_t stop = max(alen, blen) * 2;
+    stop = min(stop, len);
+    //we multiply with the following method based on the grade-school
+    //multiplication method. This allows `buffer` to alias `adata` or `bdata`
+    // for idx in [len..1]:
+    //    WordType tmp[2] = 0
+    //    for j in [0..idx]:
+    //        buffer[idx-1:] += a[j] * b[idx - 1 - j]
+    for(size_t idx = stop - 1; idx > 0; idx--) {
+        {
+            //calculate with the data at `idx - 1` before we
+            //overwrite it
+            WordType scratch[3] = { 0, 0, 0 };
+            WordType scratch2[3] = { 0, 0, 0 };
+            WordType awordAtIdx = idx < alen ? adata[idx] : asign;
+            WordType bwordAtIdx = idx < blen ? bdata[idx] : bsign;
+            scratch[1] = mulAndCarry(awordAtIdx, bdata[0], &scratch[0]);
+            scratch2[1] = mulAndCarry(bwordAtIdx, adata[0], &scratch[0]);
+            buffer[idx] = 0;
+            addBuffers(len - idx, buffer + idx,
+                3, scratch,
+                0,
+                len - idx, buffer + idx);
+            addBuffers(len - idx, buffer + idx,
+                3, scratch2,
+                0,
+                len - idx, buffer + idx);
+        }
+        for(size_t j = 1; j < idx; j++) {
+            //we use the FOIL method for half-words so as not to
+            //lose overflow bits.
+            // (ahi + alo)(bhi + blo)
+            // = ahi*bhi + ahi*blo + alo*bhi + alo*blo
+            WordType scratch[3] = { 0, 0, 0 };
+            WordType aword = j < alen ? adata[j] : asign;
+            WordType bword = (idx - j) < blen ? bdata[idx - j] : bsign;
+            scratch[1] = mulAndCarry(aword, bword, &scratch[0]);
+            addBuffers(len - idx, buffer + idx,
+                3, scratch,
+                0,
+                len - idx, buffer + idx);
+        }
+    }
+    {
+        //calculate buffer[0]
+        WordType scratch[3] = { 0, 0, 0 };
+        scratch[1] = mulAndCarry(adata[0], bdata[0], &scratch[0]);
+        buffer[0] = 0;
+        addBuffers(len, buffer,
+            3, scratch,
+            0,
+            len, buffer);
+    }
+    for(size_t i = stop; i < len; i++) {
+        buffer[i] = -HI_BIT(buffer[stop - 1]);
+    }
+    return stop;
+}
+
+size_t yabi_mulToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer) {
+    return mulBuffers(a->len, a->data, b->len, b->data, len, buffer);
 }
 
 size_t yabi_fromStrToBuf(const char* restrict str, size_t len, WordType* data) {
