@@ -4,7 +4,9 @@
 #include <stddef.h>
 
 // redefine this macro to change the size of words
+#ifndef YABI_WORD_BIT_SIZE
 #define YABI_WORD_BIT_SIZE 8
+#endif
 
 #if YABI_WORD_BIT_SIZE == 8
     typedef uint8_t WordType;
@@ -23,12 +25,24 @@
 #endif
 
 // override these with calls to your memory management scheme
+#ifndef YABI_MALLOC
 #define YABI_MALLOC(siz) (malloc(siz))
+#endif
+#ifndef YABI_CALLOC
 #define YABI_CALLOC(n, siz) (calloc(n, siz))
+#endif
+#ifndef YABI_REALLOC
 #define YABI_REALLOC(p, siz) (realloc(p, siz))
+#endif
+#ifndef YABI_FREE
 #define YABI_FREE(p) (free(p))
-#define YABI_NEW_BIGINT(siz) (YABI_MALLOC(sizeof(BigInt) + siz * sizeof(WordType)))
-#define YABI_RESIZE_BIGINT(p, siz) do { p = YABI_REALLOC(p, sizeof(BigInt) + siz * sizeof(WordType)); (p)->len = siz; } while(0)
+#endif
+#ifndef YABI_NEW_BIGINT
+#define YABI_NEW_BIGINT(siz) (YABI_MALLOC(sizeof(BigInt) + (siz) * sizeof(WordType)))
+#endif
+#ifndef YABI_RESIZE_BIGINT
+#define YABI_RESIZE_BIGINT(p, siz) do { (p) = YABI_REALLOC(p, sizeof(BigInt) + (siz) * sizeof(WordType)); (p)->len = (siz); } while(0)
+#endif
 
 typedef struct BigInt {
    size_t refCount;
@@ -73,6 +87,7 @@ size_t yabi_addToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buf
 size_t yabi_subToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
 size_t yabi_mulToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
 size_t yabi_divToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
+size_t yabi_remToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
 size_t yabi_negateToBuf(const BigInt* a, size_t len, WordType* buffer);
 
 size_t yabi_lshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffer);
