@@ -24,5 +24,7 @@ size_t mulBuffers(
     size_t alen, const WordType* adata,
     size_t blen, const WordType* bdata,
     size_t len, WordType* buffer);
+int eqBuffers(size_t alen, const WordType* a, size_t blen, const WordType* b);
+int cmpBuffers(size_t alen, const WordType* a, size_t blen, const WordType* b);
 
 #endif

@@ -83,11 +83,15 @@ BigInt* yabi_compl(const BigInt* a);
  * an offset).
  */
 
+typedef struct ydiv {
+    size_t qlen;
+    size_t rlen;
+} ydiv_t;
+
 size_t yabi_addToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
 size_t yabi_subToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
 size_t yabi_mulToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
-size_t yabi_divToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
-size_t yabi_remToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
+ydiv_t yabi_divToBuf(const BigInt* a, const BigInt* b, size_t qlen, WordType* qbuffer, size_t rlen, WordType* rbuffer);
 size_t yabi_negateToBuf(const BigInt* a, size_t len, WordType* buffer);
 
 size_t yabi_lshiftToBuf(const BigInt* a, size_t amt, size_t len, WordType* buffer);

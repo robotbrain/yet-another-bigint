@@ -52,6 +52,10 @@ int main(int argc, char* argv[]) {
     //print overlong buffer
     #define POB(desc) printf(desc": "PRIxWT" "PRIxWT" "PRIxWT" "PRIxWT"\n", buf[3], buf[2], buf[1], buf[0])
 
+    //equal and comparison
+    printf("a == b: %d\n", yabi_equal(a, b));
+    printf("a <=> b: %d\n", yabi_cmp(a, b));
+
     //addition
     c = yabi_add(a, b);
     printHex("a+b", c);

@@ -71,3 +71,15 @@ size_t mulBuffers(
 size_t yabi_mulToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer) {
     return mulBuffers(a->len, a->data, b->len, b->data, len, buffer);
 }
+
+BigInt* yabi_mul(const BigInt* a, const BigInt* b) {
+    size_t len = a->len + b->len;
+    BigInt* res = YABI_NEW_BIGINT(len);
+    res->refCount = 0;
+    res->len = len;
+    len = mulBuffers(a->len, a->data, b->len, b->data, len, res->data);
+    if(len != res->len) {
+        YABI_RESIZE_BIGINT(res, len);
+    }
+    return res;
+}
