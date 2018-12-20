@@ -31,25 +31,32 @@ WordType mulAndCarry(WordType a, WordType b, WordType* c) {
     return carry;
 }
 
-int cmpBuffers(size_t alen, const WordType* a, size_t blen, const WordType* b) {
+int cmpBuffers(size_t alen, const WordType* a, size_t blen, const WordType* b, int useSign) {
     int asign = HI_BIT(a[alen - 1]);
     int bsign = HI_BIT(b[blen - 1]);
     // case of different signs
-    if(asign ^ bsign) {
+    if(useSign && (asign ^ bsign)) {
         return bsign - asign;
+    }
+    // normalize alen and blen (trim leading sign words)
+    while(alen > 1 && a[alen - 1] == (useSign && asign)) {
+        alen--;
+    }
+    while(blen > 1 && b[blen - 1] == (useSign && bsign)) {
+        blen--;
     }
     if(alen != blen) {
         // one is longer than the other
         // and comparison is based on length
         // this assumes that the buffers are trimmed to minimum size
         int res = (alen > blen) * 2 - 1;
-        return asign ? -res : res;
+        return (useSign && asign) ? -res : res;
     } else {
         // the first differing words determine the comparison
         for(size_t i = alen; i > 0; i--) {
             if(a[i - 1] != b[i - 1]) {
                 int res = (a[i - 1] > b[i - 1]) * 2 - 1;
-                return asign ? -res : res;
+                return res;
             }
         }
         // a and b are well and truly equal

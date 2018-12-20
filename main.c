@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
     size_t s = yabi_toSize(b);
     printf("toSize(b): %lu\n", s);
 
-    //left shift
+    // // left shift
     // c = yabi_lshift(a, s);
     // printHex("a<<b", c);
     // free(c);
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
     // PTB("[a<<b]");
     // POB("{a<<b}");
     //
-    // //left shift
+    // //right shift
     // c = yabi_rshift(a, s);
     // printHex("a>>b", c);
     // free(c);
@@ -133,6 +133,10 @@ int main(int argc, char* argv[]) {
 
     yabi_mulToBuf(a, b, 4, buf);
     POB("{a*b}");
+
+    yabi_divToBuf(a, b, 1, &word, 4, buf);
+    PTB("[a/b]");
+    POB("{a%%b}");
 
     free(b);
     free(a);

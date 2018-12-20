@@ -25,6 +25,8 @@ size_t mulBuffers(
     size_t blen, const WordType* bdata,
     size_t len, WordType* buffer);
 int eqBuffers(size_t alen, const WordType* a, size_t blen, const WordType* b);
-int cmpBuffers(size_t alen, const WordType* a, size_t blen, const WordType* b);
+int cmpBuffers(size_t alen, const WordType* a, size_t blen, const WordType* b, int useSign);
+size_t lshiftBuffers(size_t alen, const WordType* a, size_t amt, size_t len, WordType* buffer);
+size_t rshiftBuffers(size_t alen, const WordType* a, size_t amt, size_t len, WordType* buffer, int useSign);
 
 #endif

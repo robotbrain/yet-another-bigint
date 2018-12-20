@@ -5,5 +5,5 @@ int yabi_equal(const BigInt* a, const BigInt* b) {
 }
 
 int yabi_cmp(const BigInt* a, const BigInt* b) {
-    return cmpBuffers(a->len, a->data, b->len, b->data);
+    return cmpBuffers(a->len, a->data, b->len, b->data, 1);
 }
