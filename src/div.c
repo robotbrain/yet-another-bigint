@@ -1,13 +1,17 @@
 #include "bigint_internal.h"
 #include <string.h>
+#include <stdlib.h>
 #include <assert.h>
 
 // calculates the largest multiple of b that fits into a, returns the quotient
 // and subtracts the appropriate amount from the remainder.
-// TODO: make faster cause this is slow as a snail!
 static WordType simpleDiv(size_t rlen, WordType* rbuf, size_t blen, const WordType* bbuf) {
     WordType q = 0;
-    size_t shf = rlen * YABI_WORD_BIT_SIZE;
+    size_t shf = rlen;
+    while(rbuf[shf - 1] == 0) {
+        shf--;
+    }
+    shf *= YABI_WORD_BIT_SIZE;
     while(cmpBuffers(rlen, rbuf, blen, bbuf, 0) >= 0) {
         size_t shfWords, shfAmt;
         WordType holder;
@@ -43,7 +47,10 @@ static WordType simpleDiv(size_t rlen, WordType* rbuf, size_t blen, const WordTy
     return q;
 }
 
-ydiv_t yabi_divToBuf(const BigInt* a, const BigInt* b, size_t qlen, WordType* qbuffer, size_t rlen, WordType* rbuffer) {
+/**
+ * Divides two unsigned BigInts. b != 0.
+ */
+static ydiv_t divUnsigned(const BigInt* a, const BigInt* b, size_t qlen, WordType* qbuffer, size_t rlen, WordType* rbuffer) {
     // long division
     memset(qbuffer, 0, qlen * sizeof(WordType));
     memset(rbuffer, 0, rlen * sizeof(WordType));
@@ -70,4 +77,82 @@ ydiv_t yabi_divToBuf(const BigInt* a, const BigInt* b, size_t qlen, WordType* qb
         res.rlen--;
     }
     return res;
+}
+
+static void negateInPlace(size_t len, WordType* buf) {
+    // quick negation algorithm:
+    // find the lowest 1 bit. Flip all the bits
+    // above the lowest 1 bit.
+    // e.g. -0b110100 = 0b001100
+    //      -   (-12) =       12
+    size_t i;
+    for(i = 0; i < (len - 1) && buf[i] == 0; i++);
+    buf[i] = ~buf[i] + 1;
+    for(i++; i < len; i++) {
+        buf[i] = ~buf[i];
+    }
+}
+
+ydiv_t yabi_divToBuf(const BigInt* a, const BigInt* b, size_t qlen, WordType* qbuffer, size_t rlen, WordType* rbuffer) {
+    // cannot divide by zero
+    if(b->len == 1 && b->data[0] == 0) {
+        return (ydiv_t) {
+            .qlen = 0,
+            .rlen = 0
+        };
+    }
+    const BigInt* num;
+    const BigInt* denom;
+    size_t rrlen;
+    WordType* rbuf;
+    int qnegative = 0;
+    int rnegative = 0;
+    // change negative numbers to positive
+    if(HI_BIT(a->data[a->len - 1])) {
+        num = yabi_negate(a);
+        qnegative ^= 1;
+        rnegative = 1;
+    } else {
+        num = a;
+    }
+    if(HI_BIT(b->data[b->len - 1])) {
+        denom = yabi_negate(b);
+        qnegative ^= 1;
+    } else {
+        denom = b;
+    }
+    // make sure the remainder can hold partial results
+    // (rlen >= b->len)
+    if(rlen < b->len) {
+        rrlen = b->len;
+        rbuf = YABI_MALLOC(rrlen * sizeof(WordType));
+    } else {
+        rrlen = rlen;
+        rbuf = rbuffer;
+    }
+    // quotient does not have to be expanded in long division
+    // ;
+    // do unsigned division
+    ydiv_t result = divUnsigned(num, denom, qlen, qbuffer, rrlen, rbuf);
+    // negate the quotient if either operand was negative
+    if(qnegative) {
+        negateInPlace(qlen, qbuffer);
+    }
+    // negate the remainder if the numerator was negative
+    if(rnegative) {
+        negateInPlace(rrlen, rbuf);
+    }
+    // copy and free dynamic storage
+    if(num != a) {
+        YABI_FREE((void*)num);
+    }
+    if(denom != b) {
+        YABI_FREE((void*)denom);
+    }
+    if(rbuf != rbuffer) {
+        memcpy(rbuffer, rbuf, rlen * sizeof(WordType));
+        YABI_FREE(rbuf);
+    }
+    // return
+    return result;
 }
