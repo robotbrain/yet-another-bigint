@@ -138,6 +138,16 @@ int main(int argc, char* argv[]) {
     PTB("[a/b]");
     POB("{a%%b}");
 
+    yabi_divToBuf(a, b, 4, buf, 1, &word);
+    POB("{a/b}");
+    PTB("[a%%b]");
+
+    ydiv_t qr = yabi_div(a, b);
+    printHex("a/b", qr.quo);
+    printHex("a%b", qr.rem);
+    free(qr.quo);
+    free(qr.rem);
+
     free(b);
     free(a);
     return 0;

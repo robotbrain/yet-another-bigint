@@ -50,11 +50,21 @@ typedef struct BigInt {
    WordType data[];
 } BigInt;
 
+typedef union ydiv {
+    struct {
+        size_t qlen;
+        size_t rlen;
+    };
+    struct {
+        BigInt* quo;
+        BigInt* rem;
+    };
+} ydiv_t;
+
 BigInt* yabi_add(const BigInt* a, const BigInt* b);
 BigInt* yabi_sub(const BigInt* a, const BigInt* b);
 BigInt* yabi_mul(const BigInt* a, const BigInt* b);
-BigInt* yabi_div(const BigInt* a, const BigInt* b);
-BigInt* yabi_rem(const BigInt* a, const BigInt* b);
+ydiv_t yabi_div(const BigInt* a, const BigInt* b);
 BigInt* yabi_negate(const BigInt* a);
 
 int yabi_equal(const BigInt* a, const BigInt* b);
@@ -82,11 +92,6 @@ BigInt* yabi_compl(const BigInt* a);
  * arguments, but it may not alias them in any other way (for example, by
  * an offset).
  */
-
-typedef struct ydiv {
-    size_t qlen;
-    size_t rlen;
-} ydiv_t;
 
 size_t yabi_addToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);
 size_t yabi_subToBuf(const BigInt* a, const BigInt* b, size_t len, WordType* buffer);

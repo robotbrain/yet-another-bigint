@@ -122,9 +122,9 @@ ydiv_t yabi_divToBuf(const BigInt* a, const BigInt* b, size_t qlen, WordType* qb
         denom = b;
     }
     // make sure the remainder can hold partial results
-    // (rlen >= b->len)
-    if(rlen < b->len) {
-        rrlen = b->len;
+    // (rlen > b->len)
+    if(rlen <= b->len) {
+        rrlen = b->len + 1;
         rbuf = YABI_MALLOC(rrlen * sizeof(WordType));
     } else {
         rrlen = rlen;
@@ -153,6 +153,40 @@ ydiv_t yabi_divToBuf(const BigInt* a, const BigInt* b, size_t qlen, WordType* qb
         memcpy(rbuffer, rbuf, rlen * sizeof(WordType));
         YABI_FREE(rbuf);
     }
+    // fix overflow
+    if(result.qlen < qlen && HI_BIT(qbuffer[result.qlen - 1]) != qnegative) {
+        // only if nonzero
+        if(result.qlen != 1 || qbuffer[0] != 0) {
+            result.qlen++;
+        }
+    }
+    if(result.rlen < rlen && HI_BIT(rbuffer[result.rlen - 1]) != rnegative) {
+        // only if nonzero
+        if(result.rlen != 1 || rbuffer[0] != 0) {
+            result.rlen++;
+        }
+    }
     // return
     return result;
+}
+
+ydiv_t yabi_div(const BigInt* a, const BigInt* b) {
+    size_t qlen = a->len + 1;
+    size_t rlen = b->len + 1;
+    BigInt* q = YABI_NEW_BIGINT(qlen);
+    q->refCount = 0;
+    q->len = qlen;
+    BigInt* r = YABI_NEW_BIGINT(rlen);
+    r->refCount = 0;
+    r->len = rlen;
+    ydiv_t res = yabi_divToBuf(a, b, qlen, q->data, rlen, r->data);
+    if(res.qlen != qlen) {
+        YABI_RESIZE_BIGINT(q, res.qlen);
+    }
+    if(res.rlen != rlen) {
+        YABI_RESIZE_BIGINT(r, res.rlen);
+    }
+    res.quo = q;
+    res.rem = r;
+    return res;
 }
