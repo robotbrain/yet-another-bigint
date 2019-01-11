@@ -1,5 +1,6 @@
 #ifndef YET_ANOTHER_BIGINT_H
 #define YET_ANOTHER_BIGINT_H
+#include "bigintcfg.h"
 #include <stdint.h>
 #include <stddef.h>
 

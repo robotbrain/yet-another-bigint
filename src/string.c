@@ -13,8 +13,7 @@ size_t yabi_fromStrToBuf(const char* restrict str, size_t len, WordType* data) {
     }
     size_t stop = len;
     memset(data, 0, len * sizeof(WordType));
-    while(*c) {
-        assert(*c >= '0' && *c <= '9');
+    while(*c >= '0' && *c <= '9') {
         //calculate 10*x + digit
         //save the carry from the bits shifted out
         unsigned carry = HI_3_BITS(data[0]) + HI_BIT(data[0]);
