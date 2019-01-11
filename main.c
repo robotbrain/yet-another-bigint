@@ -131,7 +131,12 @@ int main(int argc, char* argv[]) {
     // PTB("[a>>b]");
     // POB("{a>>b}");
 
+    c = yabi_mul(a, b);
+    printHex("a*b", c);
+    free(c);
+    yabi_mulToBuf(a, b, 1, &word);
     yabi_mulToBuf(a, b, 4, buf);
+    PTB("[a*b]");
     POB("{a*b}");
 
     yabi_divToBuf(a, b, 1, &word, 4, buf);

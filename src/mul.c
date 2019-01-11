@@ -65,6 +65,14 @@ size_t mulBuffers(
     }
     WordType sign = -HI_BIT(buffer[stop - 1]);
     memset(buffer + stop, sign, (len - stop) * sizeof(WordType));
+    // shrink away extra sign words
+    while(stop > 1 && buffer[stop - 1] == sign) {
+        stop--;
+    }
+    if(HI_BIT(buffer[stop - 1]) != (sign & 1)) {
+        stop++;
+    }
+    assert(stop <= len);
     return stop;
 }
 
