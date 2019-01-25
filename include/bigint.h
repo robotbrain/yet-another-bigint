@@ -120,6 +120,7 @@ BigInt* yabi_fromStr(const char* str);
 size_t yabi_fromStrToBuf(const char* restrict str, size_t len, WordType* buffer);
 
 char* yabi_toStr(const BigInt* a);
+char* yabi_toHexStr(const BigInt* a);
 size_t yabi_toBuf(const BigInt* a, size_t len, char* restrict buffer);
 
 #endif

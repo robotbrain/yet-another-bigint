@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <inttypes.h>
 
 size_t yabi_fromStrToBuf(const char* restrict str, size_t len, WordType* data) {
     const char* c = str;
@@ -162,4 +163,27 @@ char* yabi_toStr(const BigInt* a) {
         res = YABI_REALLOC(res, newLen + 1);
     }
     return res;
+}
+
+#if YABI_WORD_BIT_SIZE == 8
+    #define PRIxWT "%02"PRIx8
+#elif YABI_WORD_BIT_SIZE == 16
+    #define PRIxWT "%04"PRIx16
+#elif YABI_WORD_BIT_SIZE == 32
+    #define PRIxWT "%08"PRIx32
+#elif YABI_WORD_BIT_SIZE == 64
+    #define PRIxWT "%016"PRIx64
+#endif
+
+static char* yabi_toHexStr(const BigInt* a) {
+    size_t idx = a->len;
+    size_t len = 3 + a->len * YABI_WORD_BIT_SIZE / 4;
+    char* buffer = YABI_MALLOC(len);
+    sprintf(buffer, "0x");
+    while(idx != 0) {
+        WordType tmp = a->data[idx - 1];
+        sprintf(buffer, PRIxWT, tmp);
+        idx--;
+    }
+    return buffer;
 }
