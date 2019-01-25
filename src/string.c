@@ -167,22 +167,30 @@ char* yabi_toStr(const BigInt* a) {
 
 #if YABI_WORD_BIT_SIZE == 8
     #define PRIxWT "%02"PRIx8
+    #define PRIxWTL PRIx8
 #elif YABI_WORD_BIT_SIZE == 16
     #define PRIxWT "%04"PRIx16
+    #define PRIxWTL PRIx16
 #elif YABI_WORD_BIT_SIZE == 32
     #define PRIxWT "%08"PRIx32
+    #define PRIxWTL PRIx32
 #elif YABI_WORD_BIT_SIZE == 64
     #define PRIxWT "%016"PRIx64
+    #define PRIxWTL PRIx64
 #endif
 
-static char* yabi_toHexStr(const BigInt* a) {
+char* yabi_toHexStr(const BigInt* a) {
     size_t idx = a->len;
     size_t len = 3 + a->len * YABI_WORD_BIT_SIZE / 4;
     char* buffer = YABI_MALLOC(len);
     sprintf(buffer, "0x");
     while(idx != 0) {
         WordType tmp = a->data[idx - 1];
-        sprintf(buffer, PRIxWT, tmp);
+        if(idx == a->len) {
+            sprintf(buffer, PRIxWTL, tmp);
+        } else {
+            sprintf(buffer, PRIxWT, tmp);
+        }
         idx--;
     }
     return buffer;
